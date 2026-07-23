@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jankinel - KQL Query Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0d0d0d;
+            color: #e8e8e8;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Left Sidebar - Data Management */
+        .sidebar {
+            width: 300px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #1e1e1e 100%);
+            border-right: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .sidebar-section {
+            padding: 16px;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .sidebar-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #0078d4;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 6px;
+            color: #a8a8a8;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 8px 10px;
+            background-color: #2d2d30;
+            border: 1px solid #3e3e42;
+            color: #e8e8e8;
+            border-radius: 2px;
+            font-size: 12px;
+            font-family: 'Segoe UI', sans-serif;
+            transition: all 0.2s;
+        }
+
+        input[type="text"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #0078d4;
+            background-color: #353536;
+            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+        }
+
+        button {
+            padding: 8px 12px;
+            background-color: #0078d4;
+            color: #ffffff;
+            border: 1px solid #005a9e;
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #1084d7;
+            box-shadow: 0 2px 4px rgba(0, 120, 212, 0.3);
+        }
+
+        button:active {
+            background-color: #006cba;
+            transform: translateY(1px);
+        }
+
+        button.secondary {
+            background-color: #3e3e42;
+            color: #e8e8e8;
+            border-color: #555555;
+        }
+
+        button.secondary:hover {
+            background-color: #464647;
+        }
+
+        button.danger {
+            background-color: #d13438;
+            border-color: #a6201b;
+        }
+
+        button.danger:hover {
+            background-color: #da3b42;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .button-group button {
+            flex: 1;
+        }
+
+        .tables-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .table-item {
+            background-color: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 2px;
+            padding: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-item:hover {
+            background-color: #353536;
+            border-color: #0078d4;
+        }
+
+        .table-info {
+            font-size: 12px;
+        }
+
+        .table-name {
+            color: #0078d4;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .table-count {
+            color: #858585;
+            font-size: 11px;
+        }
+
+        .table-delete {
+            background-color: transparent;
+            color: #d13438;
+            border: none;
+            padding: 4px 6px;
+            cursor: pointer;
+            font-size: 12px;
+            width: auto;
+            transition: color 0.2s;
+        }
+
+        .table-delete:hover {
+            color: #ff5a5f;
+            background-color: transparent;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, #0d0d0d 0%, #1a1a1a 100%);
+        }
+
+        /* Header/Query Section */
+        .query-section {
+            padding: 20px;
+            border-bottom: 2px solid #3e3e42;
+            background: linear-gradient(180deg, #1e1e1e 0%, #0d0d0d 100%);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .query-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #0078d4;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .query-box-wrapper {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .query-box-input {
+            flex: 1;
+            position: relative;
+        }
+
+        #kqlInput {
+            width: 100%;
+            padding: 12px 14px;
+            background-color: #2d2d30;
+            border: 2px solid #3e3e42;
+            color: #e8e8e8;
+            border-radius: 3px;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+            transition: all 0.2s;
+        }
+
+        #kqlInput:focus {
+            outline: none;
+            border-color: #0078d4;
+            background-color: #353536;
+            box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.15);
+        }
+
+        .query-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        #executeBtn {
+            padding: 12px 20px;
+            background-color: #0078d4;
+            color: #ffffff;
+            border: 1px solid #005a9e;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+            min-width: 100px;
+        }
+
+        #executeBtn:hover {
+            background-color: #1084d7;
+            box-shadow: 0 4px 8px rgba(0, 120, 212, 0.3);
+        }
+
+        #executeBtn:active {
+            background-color: #006cba;
+        }
+
+        #clearQueryBtn {
+            padding: 12px 16px;
+            background-color: #3e3e42;
+            color: #e8e8e8;
+            border: 1px solid #555555;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Results Section */
+        .results-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .results-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #0078d4;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .results-count {
+            font-size: 11px;
+            color: #858585;
+        }
+
+        .results-container {
+            flex: 1;
+            overflow: auto;
+            background-color: #1a1a1a;
+            border: 1px solid #3e3e42;
+            border-radius: 3px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        thead {
+            background-color: #2d2d30;
+            border-bottom: 2px solid #0078d4;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th {
+            padding: 12px 10px;
+            text-align: left;
+            color: #0078d4;
+            font-weight: 600;
+            border-right: 1px solid #3e3e42;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px;
+        }
+
+        th:last-child {
+            border-right: none;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #2d2d30;
+            transition: background-color 0.1s;
+        }
+
+        tbody tr:hover {
+            background-color: #252526;
+        }
+
+        td {
+            padding: 10px;
+            border-right: 1px solid #2d2d30;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #e8e8e8;
+        }
+
+        td:last-child {
+            border-right: none;
+        }
+
+        .empty-state {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: #858585;
+            font-size: 13px;
+            text-align: center;
+            flex-direction: column;
+        }
+
+        .empty-state-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .error-message {
+            padding: 12px 14px;
+            background-color: #3d2223;
+            border: 1px solid #d13438;
+            color: #f48771;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+
+        .success-message {
+            padding: 12px 14px;
+            background-color: #2d3d2a;
+            border: 1px solid #107c10;
+            color: #6cc24a;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #3e3e42;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0078d4;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Left Sidebar -->
+        <div class="sidebar">
+            <!-- Load Data Section -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">📥 Load Data</div>
+                <div class="form-group">
+                    <label for="tableNameInput">Table Name</label>
+                    <input type="text" id="tableNameInput" placeholder="e.g., SecurityEvents" />
+                </div>
+                <div class="form-group">
+                    <label for="logDataInput">CSV Data</label>
+                    <textarea id="logDataInput" placeholder='Field1,Field2,Field3
+value1,value2,value3
+value4,value5,value6'></textarea>
+                </div>
+                <button id="loadDataBtn" onclick="loadData()">Load into Table</button>
+            </div>
+
+            <!-- Storage Management Section -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">💾 Storage</div>
+                <div class="button-group">
+                    <button class="secondary" id="exportBtn" onclick="exportData()">Export</button>
+                    <button class="secondary" id="importBtn" onclick="triggerImport()">Import</button>
+                </div>
+                <button class="danger" id="clearBtn" style="margin-top: 8px;" onclick="clearAllStorage()">Clear All</button>
+            </div>
+
+            <!-- Tables List Section -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">📊 Loaded Tables</div>
+            </div>
+            <div class="tables-list" id="tablesList"></div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Query Section -->
+            <div class="query-section">
+                <div class="query-label">KQL Query</div>
+                <div class="query-box-wrapper">
+                    <div class="query-box-input">
+                        <input type="text" id="kqlInput" placeholder='e.g., SecurityEvents | where EventID == 4625 | project TimeGenerated, Account, Computer' />
+                    </div>
+                    <div class="query-buttons">
+                        <button id="executeBtn" onclick="executeQuery()">Execute</button>
+                        <button id="clearQueryBtn" onclick="clearQuery()">Clear</button>
+                    </div>
+                </div>
+                <div id="messageContainer"></div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section">
+                <div class="results-header">
+                    <div class="results-title">Results</div>
+                    <div class="results-count" id="resultCount">0 rows</div>
+                </div>
+                <div class="results-container" id="resultsContainer">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <div>Execute a KQL query to view results</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input for import -->
+    <input type="file" id="fileInput" accept=".json" style="display: none;" />
+
+    <script>
+        // CSV Parser
+        class CSVParser {
+            static parse(csvText) {
+                const lines = csvText.trim().split('\n');
+                if (lines.length < 2) {
+                    throw new Error('CSV must have at least a header row and one data row');
+                }
+
+                const headers = this.parseCSVLine(lines[0]);
+                if (headers.length === 0) {
+                    throw new Error('No headers found in CSV');
+                }
+
+                const data = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue; // Skip empty lines
+
+                    const values = this.parseCSVLine(line);
+                    if (values.length === 0) continue;
+
+                    const row = {};
+                    for (let j = 0; j < headers.length; j++) {
+                        row[headers[j]] = values[j] || '';
+                    }
+                    data.push(row);
+                }
+
+                return data;
+            }
+
+            static parseCSVLine(line) {
+                const values = [];
+                let current = '';
+                let insideQuotes = false;
+
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    const nextChar = line[i + 1];
+
+                    if (char === '"') {
+                        if (insideQuotes && nextChar === '"') {
+                            // Escaped quote
+                            current += '"';
+                            i++; // Skip next quote
+                        } else {
+                            // Toggle quote mode
+                            insideQuotes = !insideQuotes;
+                        }
+                    } else if (char === ',' && !insideQuotes) {
+                        // End of field
+                        values.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+
+                // Add last field
+                values.push(current.trim());
+
+                return values;
+            }
+        }
+
+        // KQL Parser and Executor
+        class KQLParser {
+            constructor(tables) {
+                this.tables = tables;
+                this.currentData = [];
+            }
+
+            execute(query) {
+                try {
+                    query = query.trim();
+                    if (!query) throw new Error('Query is empty');
+
+                    // Split by pipe to get stages
+                    const stages = query.split('|').map(s => s.trim());
+                    
+                    // Get initial table
+                    const tableName = stages[0].trim();
+                    if (!this.tables[tableName]) {
+                        throw new Error(`Table '${tableName}' not found`);
+                    }
+
+                    this.currentData = JSON.parse(JSON.stringify(this.tables[tableName]));
+
+                    // Process remaining stages
+                    for (let i = 1; i < stages.length; i++) {
+                        const stage = stages[i];
+                        this.processStage(stage);
+                    }
+
+                    return this.currentData;
+                } catch (error) {
+                    throw error;
+                }
+            }
+
+            processStage(stage) {
+                const match = stage.match(/^(\w+)\s*(.*)/);
+                if (!match) return;
+
+                const command = match[1].toLowerCase();
+                const args = match[2].trim();
+
+                switch (command) {
+                    case 'where':
+                        this.processWhere(args);
+                        break;
+                    case 'project':
+                    case 'select':
+                        this.processProject(args);
+                        break;
+                    case 'take':
+                    case 'limit':
+                        this.processLimit(args);
+                        break;
+                    case 'sort':
+                    case 'order':
+                        this.processSort(args);
+                        break;
+                    case 'distinct':
+                        this.processDistinct(args);
+                        break;
+                    case 'summarize':
+                        this.processSummarize(args);
+                        break;
+                    case 'extend':
+                        this.processExtend(args);
+                        break;
+                    default:
+                        throw new Error(`Unknown command: ${command}`);
+                }
+            }
+
+            processWhere(condition) {
+                this.currentData = this.currentData.filter(row => {
+                    try {
+                        return this.evaluateCondition(row, condition);
+                    } catch {
+                        return false;
+                    }
+                });
+            }
+
+            evaluateCondition(row, condition) {
+                // Replace 'contains' operator with a custom function
+                condition = this.replaceContains(condition, row);
+                
+                // Handle multiple conditions with 'and', 'or'
+                condition = condition.replace(/\band\b/gi, '&&').replace(/\bor\b/gi, '||');
+                
+                // Replace field references with their values
+                for (const [key, value] of Object.entries(row)) {
+                    // Skip if already processed by contains
+                    if (!condition.includes(`__contains_${key}`)) {
+                        const stringValue = typeof value === 'string' ? `"${value}"` : value;
+                        condition = condition.replace(new RegExp(`\\b${key}\\b`, 'g'), stringValue);
+                    }
+                }
+
+                // Evaluate the condition
+                try {
+                    return eval(condition);
+                } catch {
+                    return false;
+                }
+            }
+
+            replaceContains(condition, row) {
+                // Match patterns like: field contains "value" or field contains 'value'
+                const containsRegex = /(\w+)\s+contains\s+["']([^"']*)["']/gi;
+                let result = condition;
+                let match;
+
+                while ((match = containsRegex.exec(condition)) !== null) {
+                    const fieldName = match[1];
+                    const searchValue = match[2];
+                    const fullMatch = match[0];
+                    
+                    const fieldValue = row[fieldName];
+                    const containsResult = fieldValue && String(fieldValue).toLowerCase().includes(searchValue.toLowerCase());
+                    
+                    result = result.replace(fullMatch, containsResult ? 'true' : 'false');
+                }
+
+                return result;
+            }
+
+            processProject(args) {
+                const fields = args.split(',').map(f => f.trim());
+                this.currentData = this.currentData.map(row => {
+                    const newRow = {};
+                    fields.forEach(field => {
+                        if (row.hasOwnProperty(field)) {
+                            newRow[field] = row[field];
+                        }
+                    });
+                    return newRow;
+                });
+            }
+
+            processLimit(args) {
+                const limit = parseInt(args);
+                if (isNaN(limit)) throw new Error('Invalid limit value');
+                this.currentData = this.currentData.slice(0, limit);
+            }
+
+            processSort(args) {
+                const sortField = args.trim();
+                const isDesc = sortField.toLowerCase().includes('desc');
+                const field = sortField.replace(/\s*(asc|desc)/i, '').trim();
+
+                this.currentData.sort((a, b) => {
+                    const aVal = a[field];
+                    const bVal = b[field];
+                    if (aVal === undefined || bVal === undefined) return 0;
+                    const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                    return isDesc ? -cmp : cmp;
+                });
+            }
+
+            processDistinct(args) {
+                const field = args.trim();
+                const seen = new Set();
+                this.currentData = this.currentData.filter(row => {
+                    const val = row[field];
+                    if (seen.has(val)) return false;
+                    seen.add(val);
+                    return true;
+                });
+            }
+
+            processSummarize(args) {
+                // Simple count aggregation
+                const match = args.match(/count\(\)\s+by\s+(\w+)/i);
+                if (match) {
+                    const groupBy = match[1];
+                    const groups = {};
+                    this.currentData.forEach(row => {
+                        const key = row[groupBy];
+                        groups[key] = (groups[key] || 0) + 1;
+                    });
+                    this.currentData = Object.entries(groups).map(([key, count]) => ({
+                        [groupBy]: key,
+                        'count_': count
+                    }));
+                } else {
+                    throw new Error('Unsupported summarize operation');
+                }
+            }
+
+            processExtend(args) {
+                throw new Error('Extend operation not yet supported');
+            }
+        }
+
+        // UI Functions
+        function loadData() {
+            const tableName = document.getElementById('tableNameInput').value.trim();
+            const csvData = document.getElementById('logDataInput').value.trim();
+
+            if (!tableName) {
+                showMessage('Table name is required', 'error');
+                return;
+            }
+
+            if (!csvData) {
+                showMessage('CSV data is required', 'error');
+                return;
+            }
+
+            try {
+                const data = CSVParser.parse(csvData);
+                if (data.length === 0) {
+                    throw new Error('No data rows found in CSV');
+                }
+
+                localStorage.setItem(tableName, JSON.stringify(data));
+                showMessage(`Loaded ${data.length} rows into table "${tableName}"`, 'success');
+                
+                document.getElementById('tableNameInput').value = '';
+                document.getElementById('logDataInput').value = '';
+                
+                updateTablesList();
+            } catch (error) {
+                showMessage(`Error loading data: ${error.message}`, 'error');
+            }
+        }
+
+        function deleteTable(tableName) {
+            if (confirm(`Delete table "${tableName}"?`)) {
+                localStorage.removeItem(tableName);
+                updateTablesList();
+                showMessage(`Table "${tableName}" deleted`, 'success');
+            }
+        }
+
+        function updateTablesList() {
+            const tablesList = document.getElementById('tablesList');
+            tablesList.innerHTML = '';
+
+            const tables = getTables();
+            if (Object.keys(tables).length === 0) {
+                tablesList.innerHTML = '<div class="empty-state"><div>No tables loaded</div></div>';
+                return;
+            }
+
+            Object.entries(tables).forEach(([name, data]) => {
+                const item = document.createElement('div');
+                item.className = 'table-item';
+                item.innerHTML = `
+                    <div class="table-info">
+                        <div class="table-name">${escapeHtml(name)}</div>
+                        <div class="table-count">${data.length} rows</div>
+                    </div>
+                    <button class="table-delete" onclick="deleteTable('${name.replace(/'/g, "\\'")}')">×</button>
+                `;
+                tablesList.appendChild(item);
+            });
+        }
+
+        function getTables() {
+            const tables = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                try {
+                    tables[key] = JSON.parse(localStorage.getItem(key));
+                } catch {
+                    // Skip invalid JSON
+                }
+            }
+            return tables;
+        }
+
+        function executeQuery() {
+            const query = document.getElementById('kqlInput').value.trim();
+            const messageContainer = document.getElementById('messageContainer');
+            messageContainer.innerHTML = '';
+
+            if (!query) {
+                showMessage('Enter a KQL query', 'error');
+                return;
+            }
+
+            try {
+                const tables = getTables();
+                const parser = new KQLParser(tables);
+                const results = parser.execute(query);
+
+                displayResults(results);
+                messageContainer.innerHTML = '';
+            } catch (error) {
+                showMessage(`Query error: ${error.message}`, 'error');
+                clearResults();
+            }
+        }
+
+        function displayResults(results) {
+            const container = document.getElementById('resultsContainer');
+            const countElement = document.getElementById('resultCount');
+
+            if (!results || results.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>No results</div></div>';
+                countElement.textContent = '0 rows';
+                return;
+            }
+
+            // Get all unique column names
+            const columns = new Set();
+            results.forEach(row => {
+                Object.keys(row).forEach(key => columns.add(key));
+            });
+
+            // Build table
+            let html = '<table><thead><tr>';
+            columns.forEach(col => {
+                html += `<th>${escapeHtml(col)}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            results.forEach(row => {
+                html += '<tr>';
+                columns.forEach(col => {
+                    const value = row[col] !== undefined ? row[col] : '';
+                    html += `<td>${escapeHtml(String(value))}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+            countElement.textContent = `${results.length} row${results.length !== 1 ? 's' : ''}`;
+        }
+
+        function clearResults() {
+            const container = document.getElementById('resultsContainer');
+            container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div><div>Execute a KQL query to view results</div></div>';
+            document.getElementById('resultCount').textContent = '0 rows';
+        }
+
+        function clearQuery() {
+            document.getElementById('kqlInput').value = '';
+            document.getElementById('messageContainer').innerHTML = '';
+        }
+
+        function showMessage(text, type) {
+            const container = document.getElementById('messageContainer');
+            container.innerHTML = `<div class="${type}-message">${escapeHtml(text)}</div>`;
+            if (type === 'success') {
+                setTimeout(() => {
+                    container.innerHTML = '';
+                }, 3000);
+            }
+        }
+
+        function exportData() {
+            const tables = getTables();
+            const dataStr = JSON.stringify(tables, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `jankinel-export-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showMessage('Data exported successfully', 'success');
+        }
+
+        function triggerImport() {
+            document.getElementById('fileInput').click();
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (typeof data !== 'object' || data === null) {
+                        throw new Error('Invalid format');
+                    }
+
+                    // Load all tables from import
+                    Object.entries(data).forEach(([tableName, tableData]) => {
+                        if (Array.isArray(tableData)) {
+                            localStorage.setItem(tableName, JSON.stringify(tableData));
+                        }
+                    });
+
+                    showMessage(`Imported ${Object.keys(data).length} table(s)`, 'success');
+                    updateTablesList();
+                } catch (error) {
+                    showMessage(`Import error: ${error.message}`, 'error');
+                }
+            };
+            reader.readAsText(file);
+
+            // Reset file input
+            e.target.value = '';
+        });
+
+        function clearAllStorage() {
+            if (confirm('Delete ALL tables from storage? This cannot be undone.')) {
+                localStorage.clear();
+                updateTablesList();
+                clearResults();
+                clearQuery();
+                showMessage('All data cleared', 'success');
+            }
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                executeQuery();
+            }
+        });
+
+        // Initialize
+        updateTablesList();
+    </script>
+</body>
+</html>
