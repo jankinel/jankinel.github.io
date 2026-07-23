@@ -209,13 +209,16 @@
             border-bottom: 2px solid #3e3e42;
             background: linear-gradient(180deg, #1e1e1e 0%, #0d0d0d 100%);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .query-label {
             font-size: 13px;
             font-weight: 600;
             color: #0078d4;
-            margin-bottom: 8px;
+            margin-bottom: 0;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -223,7 +226,7 @@
         .query-box-wrapper {
             display: flex;
             gap: 12px;
-            align-items: flex-end;
+            align-items: flex-start;
         }
 
         .query-box-input {
@@ -241,6 +244,9 @@
             font-size: 13px;
             font-family: 'Courier New', monospace;
             transition: all 0.2s;
+            resize: vertical;
+            min-height: 100px;
+            line-height: 1.5;
         }
 
         #kqlInput:focus {
@@ -252,6 +258,7 @@
 
         .query-buttons {
             display: flex;
+            flex-direction: column;
             gap: 8px;
         }
 
@@ -265,7 +272,7 @@
             font-size: 12px;
             font-weight: 600;
             transition: all 0.2s;
-            min-width: 100px;
+            width: 100px;
         }
 
         #executeBtn:hover {
@@ -286,6 +293,7 @@
             cursor: pointer;
             font-size: 12px;
             font-weight: 600;
+            width: 100px;
         }
 
         /* Results Section */
@@ -494,7 +502,10 @@ value4,value5,value6'></textarea>
                 <div class="query-label">KQL Query</div>
                 <div class="query-box-wrapper">
                     <div class="query-box-input">
-                        <input type="text" id="kqlInput" placeholder='e.g., SecurityEvents | where EventID == 4625 | project TimeGenerated, Account, Computer' />
+                        <textarea id="kqlInput" placeholder='SecurityEvents
+| where EventID == 4625
+| project TimeGenerated, Account, Computer
+| take 10'></textarea>
                     </div>
                     <div class="query-buttons">
                         <button id="executeBtn" onclick="executeQuery()">Execute</button>
@@ -601,8 +612,15 @@ value4,value5,value6'></textarea>
                     query = query.trim();
                     if (!query) throw new Error('Query is empty');
 
+                    // Normalize query by removing line breaks and joining with pipes
+                    const normalizedQuery = query
+                        .split('\n')
+                        .map(line => line.trim())
+                        .filter(line => line && !line.startsWith('//'))
+                        .join(' | ');
+
                     // Split by pipe to get stages
-                    const stages = query.split('|').map(s => s.trim());
+                    const stages = normalizedQuery.split('|').map(s => s.trim());
                     
                     // Get initial table
                     const tableName = stages[0].trim();
@@ -672,7 +690,9 @@ value4,value5,value6'></textarea>
             }
 
             evaluateCondition(row, condition) {
-                // Replace 'contains' operator with a custom function
+                // Replace operators in order: has_any, has, contains (longest to shortest to avoid conflicts)
+                condition = this.replaceHasAny(condition, row);
+                condition = this.replaceHas(condition, row);
                 condition = this.replaceContains(condition, row);
                 
                 // Handle multiple conditions with 'and', 'or'
@@ -680,11 +700,8 @@ value4,value5,value6'></textarea>
                 
                 // Replace field references with their values
                 for (const [key, value] of Object.entries(row)) {
-                    // Skip if already processed by contains
-                    if (!condition.includes(`__contains_${key}`)) {
-                        const stringValue = typeof value === 'string' ? `"${value}"` : value;
-                        condition = condition.replace(new RegExp(`\\b${key}\\b`, 'g'), stringValue);
-                    }
+                    const stringValue = typeof value === 'string' ? `"${value}"` : value;
+                    condition = condition.replace(new RegExp(`\\b${key}\\b`, 'g'), stringValue);
                 }
 
                 // Evaluate the condition
@@ -697,6 +714,7 @@ value4,value5,value6'></textarea>
 
             replaceContains(condition, row) {
                 // Match patterns like: field contains "value" or field contains 'value'
+                // contains matches any substring (case-insensitive)
                 const containsRegex = /(\w+)\s+contains\s+["']([^"']*)["']/gi;
                 let result = condition;
                 let match;
@@ -707,12 +725,140 @@ value4,value5,value6'></textarea>
                     const fullMatch = match[0];
                     
                     const fieldValue = row[fieldName];
-                    const containsResult = fieldValue && String(fieldValue).toLowerCase().includes(searchValue.toLowerCase());
+                    // Case-insensitive comparison
+                    const containsResult = fieldValue && 
+                        String(fieldValue).toLowerCase().includes(searchValue.toLowerCase());
                     
                     result = result.replace(fullMatch, containsResult ? 'true' : 'false');
                 }
 
                 return result;
+            }
+
+            replaceHas(condition, row) {
+                // Match patterns like: field has "value" or field has 'value'
+                // has matches whole words/terms (word boundaries with non-alphanumeric chars)
+                // Case-insensitive matching
+                const hasRegex = /(\w+)\s+has\s+["']([^"']*)["']/gi;
+                let result = condition;
+                let match;
+
+                while ((match = hasRegex.exec(condition)) !== null) {
+                    const fieldName = match[1];
+                    const searchValue = match[2];
+                    const fullMatch = match[0];
+                    
+                    const fieldValue = row[fieldName];
+                    if (!fieldValue) {
+                        result = result.replace(fullMatch, 'false');
+                        continue;
+                    }
+
+                    // has operator: match whole terms separated by non-alphanumeric characters
+                    // Case-insensitive comparison
+                    const fieldStr = String(fieldValue).toLowerCase();
+                    const searchLower = searchValue.toLowerCase();
+                    
+                    // Create regex to match the search term as a whole word (case-insensitive)
+                    const wordBoundaryRegex = new RegExp(`\\b${this.escapeRegex(searchLower)}\\b`, 'i');
+                    const hasResult = wordBoundaryRegex.test(fieldStr);
+                    
+                    result = result.replace(fullMatch, hasResult ? 'true' : 'false');
+                }
+
+                return result;
+            }
+
+            replaceHasAny(condition, row) {
+                // Match patterns like: field has_any (...) - supports multiline arrays
+                // This regex allows for newlines and multiple values across lines
+                // Case-insensitive matching
+                const hasAnyRegex = /(\w+)\s+has_any\s+\(([^)]*)\)/gis;
+                let result = condition;
+                let match;
+
+                while ((match = hasAnyRegex.exec(condition)) !== null) {
+                    const fieldName = match[1];
+                    const valuesStr = match[2];
+                    const fullMatch = match[0];
+                    
+                    // Parse the values from the parentheses, handling multiline input
+                    const values = this.parseHasAnyValues(valuesStr);
+                    
+                    if (values.length === 0) {
+                        result = result.replace(fullMatch, 'false');
+                        continue;
+                    }
+
+                    const fieldValue = row[fieldName];
+                    if (!fieldValue) {
+                        result = result.replace(fullMatch, 'false');
+                        continue;
+                    }
+
+                    // Case-insensitive comparison
+                    const fieldStr = String(fieldValue).toLowerCase();
+                    
+                    // Check if any of the values match as whole terms
+                    const hasAnyResult = values.some(val => {
+                        const valLower = val.toLowerCase();
+                        const wordBoundaryRegex = new RegExp(`\\b${this.escapeRegex(valLower)}\\b`, 'i');
+                        return wordBoundaryRegex.test(fieldStr);
+                    });
+                    
+                    result = result.replace(fullMatch, hasAnyResult ? 'true' : 'false');
+                }
+
+                return result;
+            }
+
+            parseHasAnyValues(valuesStr) {
+                // Parse comma-separated quoted values from has_any, handling multiline input
+                const values = [];
+                let current = '';
+                let insideQuotes = false;
+                let quoteChar = null;
+
+                for (let i = 0; i < valuesStr.length; i++) {
+                    const char = valuesStr[i];
+                    const nextChar = valuesStr[i + 1];
+
+                    if ((char === '"' || char === "'") && !insideQuotes) {
+                        insideQuotes = true;
+                        quoteChar = char;
+                    } else if (char === quoteChar && insideQuotes) {
+                        if (nextChar === quoteChar) {
+                            // Escaped quote
+                            current += char;
+                            i++;
+                        } else {
+                            // End of quoted string
+                            insideQuotes = false;
+                            quoteChar = null;
+                        }
+                    } else if (char === ',' && !insideQuotes) {
+                        // Separator between values
+                        const trimmed = current.trim();
+                        if (trimmed) {
+                            values.push(trimmed);
+                        }
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+
+                // Add last value
+                const trimmed = current.trim();
+                if (trimmed) {
+                    values.push(trimmed);
+                }
+
+                return values;
+            }
+
+            escapeRegex(str) {
+                return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             }
 
             processProject(args) {
