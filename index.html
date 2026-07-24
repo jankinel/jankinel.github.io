@@ -690,7 +690,10 @@ value4,value5,value6'></textarea>
             }
 
             evaluateCondition(row, condition) {
-                // Replace operators in order: has_any, has, contains (longest to shortest to avoid conflicts)
+                // Process not() operator first (longest to shortest to avoid conflicts)
+                condition = this.replaceNot(condition, row);
+                
+                // Replace operators in order: has_any, has, contains
                 condition = this.replaceHasAny(condition, row);
                 condition = this.replaceHas(condition, row);
                 condition = this.replaceContains(condition, row);
@@ -710,6 +713,30 @@ value4,value5,value6'></textarea>
                 } catch {
                     return false;
                 }
+            }
+
+            replaceNot(condition, row) {
+                // Match patterns like: not(field contains "value") or not(field == "value") etc.
+                // This regex captures the entire expression inside not()
+                const notRegex = /not\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)/gi;
+                let result = condition;
+                let match;
+
+                while ((match = notRegex.exec(condition)) !== null) {
+                    const innerExpression = match[1];
+                    const fullMatch = match[0];
+                    
+                    try {
+                        // Recursively evaluate the inner expression
+                        const innerResult = this.evaluateCondition(row, innerExpression);
+                        // Replace the not(...) with the negated result
+                        result = result.replace(fullMatch, !innerResult ? 'true' : 'false');
+                    } catch {
+                        result = result.replace(fullMatch, 'false');
+                    }
+                }
+
+                return result;
             }
 
             replaceContains(condition, row) {
